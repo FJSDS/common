@@ -9,7 +9,7 @@ import (
 
 func TestLogger(t *testing.T) {
 	r := require.New(t)
-	log, err := New("test", "./log", zap.DebugLevel, WithFile())
+	log, err := NewLogger("test", "./log", zap.DebugLevel, WithFile())
 	r.NoError(err)
 	defer log.Flush()
 	log.Info("test", zap.Int64("int64", int64(222)))

@@ -26,7 +26,7 @@ func GetDefaultLogger() *Logger {
 
 func InitDefaultLogger(name, path string, lvl zapcore.Level, opts ...Option) (*Logger, error) {
 	var err error
-	log, err = New(name, path, lvl, opts...)
+	log, err = NewLogger(name, path, lvl, opts...)
 	return log, err
 }
 
@@ -64,7 +64,7 @@ type Options struct {
 	ExpiredDay int64
 }
 
-func New(name, path string, lvl zapcore.Level, opts ...Option) (*Logger, error) {
+func NewLogger(name, path string, lvl zapcore.Level, opts ...Option) (*Logger, error) {
 	err := utils.CheckAndCreate(path)
 	if err != nil {
 		return nil, err
@@ -139,9 +139,7 @@ func (this_ *Logger) checkTomorrow() {
 	tomorrowDay := int64(t.YearDay())
 	if tomorrowDay != *(*int64)(atomic.LoadPointer(&this_.tomorrow)) {
 		if atomic.CompareAndSwapPointer(&this_.tomorrow, this_.tomorrow, unsafe.Pointer(&tomorrowDay)) {
-
 			pathFile := filepath.Join(this_.path, t.Format("2006_01_02")+"_"+this_.name+".log")
-
 			log, err := newLogger(pathFile, this_.lvl, this_.opts)
 			if err != nil {
 				panic(err)
