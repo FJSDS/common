@@ -135,7 +135,6 @@ func (this_ *Logger) Flush() {
 
 func (this_ *Logger) checkTomorrow() {
 	t := timer.Now()
-	//tomorrowStr := t.Format("2006_01_02")
 	tomorrowDay := int64(t.YearDay())
 	if tomorrowDay != *(*int64)(atomic.LoadPointer(&this_.tomorrow)) {
 		if atomic.CompareAndSwapPointer(&this_.tomorrow, this_.tomorrow, unsafe.Pointer(&tomorrowDay)) {
