@@ -2,6 +2,7 @@ package timer
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,5 +24,26 @@ func TestTimer(t *testing.T) {
 	temp = end.Sub(start) / time.Millisecond
 	if temp > 2049 || temp < 2047 {
 		require.Fail(t, "temp must in [2047,2049]")
+	}
+}
+
+func TestNewTicker(t *testing.T) {
+	//tick := NewTicker()
+	//tick.run()
+	count := int64(0)
+
+	go func() {
+		for i := 0; i < 1000000000; i++ {
+			time.AfterFunc(time.Second, func() {
+
+				atomic.AddInt64(&count, 1)
+
+			})
+		}
+	}()
+
+	for {
+		time.Sleep(time.Second)
+		fmt.Println(atomic.LoadInt64(&count))
 	}
 }

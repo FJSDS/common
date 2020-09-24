@@ -1,0 +1,16 @@
+syntax = "proto3";
+package basepb;
+option java_package="com.srui.gamelive.basepb";
+// 基础结构，主要提供给tcp内部使用，目前客户端用不到
+message base {
+
+    // rpc 无消息返回时可以返回这个值
+    message Success {}
+
+    // rpc 发生错误时可以返回这个值
+    message Error {
+        int64 error_code = 1;
+        string error_message = 2;
+        repeated string fields = 3;
+    }
+}

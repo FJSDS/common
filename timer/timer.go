@@ -3,11 +3,13 @@ package timer
 import (
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
 func init() {
+	runTimeTicker()
 	now = &timer{}
 	now.run()
 }
@@ -16,6 +18,40 @@ var now *timer
 
 type timer struct {
 	t atomic.Value
+}
+
+func runTimeTicker() {
+	go func() {
+		for {
+			t := <-tempTicker
+			GlobalTicker.Range(func(_, value interface{}) bool {
+				v := value.(chan time.Time)
+				select {
+				case v <- t:
+				default:
+				}
+				return true
+			})
+		}
+	}()
+}
+
+var GlobalTicker sync.Map
+var tempTicker = make(chan time.Time, 1)
+var timerCount int64
+
+func GetTickChan() (<-chan time.Time, int64) {
+	c := make(chan time.Time, 2)
+	index := atomic.AddInt64(&timerCount, 1)
+	GlobalTicker.Store(index, c)
+	return c, index
+}
+
+func PutTickChan(index int64) {
+	v, ok := GlobalTicker.LoadAndDelete(index)
+	if ok && v != nil {
+		close(v.(chan time.Time))
+	}
 }
 
 func (this_ *timer) run() {
@@ -28,10 +64,16 @@ func (this_ *timer) run() {
 			select {
 			case t := <-ticker.C:
 				this_.t.Store(&t)
+				select {
+				case tempTicker <- t:
+				default:
+				}
 			}
 		}
 	}()
 }
+
+const bucketCount = 100
 
 func Now() time.Time {
 	return *now.t.Load().(*time.Time)
