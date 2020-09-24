@@ -166,7 +166,7 @@ func (this_ *Ticker) run() {
 }
 
 func (this_ *Ticker) runOneTask(t *taskNode) {
-	utils.Recover(func(e interface{}) {
+	defer utils.Recover(func(e interface{}) {
 		this_.log.Error("runOneTask panic", zap.Any("panic info", e))
 	})
 	if t.f != nil {
