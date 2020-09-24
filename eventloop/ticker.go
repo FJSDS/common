@@ -25,7 +25,7 @@ func (this_ *AntsLogger) Printf(format string, args ...interface{}) {
 
 type Ticker struct {
 	m         *treemap.Map
-	C         <-chan time.Time
+	c         <-chan time.Time
 	index     int64
 	keyPool   *sync.Pool
 	taskPool  *sync.Pool
@@ -91,9 +91,8 @@ func NewTicker(log *logger.Logger) *Ticker {
 
 func newTicker(log *logger.Logger, pool *ants.Pool, queue *EsQueue) *Ticker {
 	c, index := timer.GetTickChan()
-
 	t := &Ticker{
-		C:     c,
+		c:     c,
 		m:     treemap.NewWith(keyInt64Comparator),
 		index: index,
 		keyPool: &sync.Pool{New: func() interface{} {
@@ -118,7 +117,7 @@ func (this_ *Ticker) GetQueue() *EsQueue {
 }
 
 //func (this_ *ticker) TickerLen() int64 {
-//	return int64(len(this_.C))
+//	return int64(len(this_.c))
 //}
 
 func (this_ *Ticker) run() {
@@ -126,7 +125,7 @@ func (this_ *Ticker) run() {
 		const maxBatch = 2560
 		arr := make([]interface{}, 0, maxBatch)
 		arrKey := make([]*nodeKey, 0, maxBatch)
-		for v := range this_.C {
+		for v := range this_.c {
 			now := v.UnixNano()
 			for {
 				arr = arr[:0]
