@@ -1,12 +1,13 @@
 package eventloop
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/emirpasic/gods/maps/treemap"
+	"github.com/MauriceGit/skiplist"
 	"github.com/panjf2000/ants"
 	"go.uber.org/zap"
 
@@ -24,13 +25,13 @@ func (this_ *AntsLogger) Printf(format string, args ...interface{}) {
 }
 
 type Ticker struct {
-	m         *treemap.Map
+	m         *skiplist.SkipList
 	c         <-chan time.Time
 	index     int64
 	keyPool   *sync.Pool
 	taskPool  *sync.Pool
-	lock      utils.SpinLock
-	taskIndex uint64
+	lock      *utils.SpinLock
+	taskIndex uint32
 	log       *logger.Logger
 	pool      *ants.Pool
 	queue     *EsQueue
@@ -42,6 +43,7 @@ type taskNode struct {
 	t             int64
 	tickMill      time.Duration
 	isPoolOrQueue int // 0 定时任务线程执行，1 线程池执行，2 queue执行
+	Index         float64
 }
 
 func (this_ *taskNode) reset() {
@@ -50,60 +52,75 @@ func (this_ *taskNode) reset() {
 	this_.t = 0
 	this_.tickMill = 0
 	this_.isPoolOrQueue = 0
-}
-
-type nodeKey struct {
-	NanoSecond int64
-	Index      uint64
-}
-
-func (this_ *nodeKey) reset() {
-	this_.NanoSecond = 0
 	this_.Index = 0
 }
 
-func keyInt64Comparator(a, b interface{}) int {
-	aAsserted := a.(*nodeKey)
-	bAsserted := b.(*nodeKey)
-
-	if aAsserted.NanoSecond > bAsserted.NanoSecond {
-		return 1
-	}
-	if aAsserted.NanoSecond < bAsserted.NanoSecond {
-		return -1
-	}
-	if aAsserted.Index > bAsserted.Index {
-		return 1
-	}
-	if aAsserted.Index < bAsserted.Index {
-		return -1
-	}
-	return 0
+func (this_ *taskNode) ExtractKey() float64 {
+	return this_.Index
 }
+func (this_ *taskNode) String() string {
+	return fmt.Sprintf("%e", this_.Index)
+}
+
+//type nodeKey struct {
+//	NanoSecond int64
+//	Index      uint64
+//}
+//
+//func (e *nodeKey) ExtractKey() float64 {
+//	return float64()
+//}
+//func (e *nodeKey) String() string {
+//	return fmt.Sprintf("%03d", e)
+//}
+
+//func (this_ *nodeKey) reset() {
+//	this_.NanoSecond = 0
+//	this_.Index = 0
+//}
+
+//func keyInt64Comparator(a, b interface{}) int {
+//	aAsserted := a.(*nodeKey)
+//	bAsserted := b.(*nodeKey)
+//
+//	if aAsserted.NanoSecond > bAsserted.NanoSecond {
+//		return 1
+//	}
+//	if aAsserted.NanoSecond < bAsserted.NanoSecond {
+//		return -1
+//	}
+//	if aAsserted.Index > bAsserted.Index {
+//		return 1
+//	}
+//	if aAsserted.Index < bAsserted.Index {
+//		return -1
+//	}
+//	return 0
+//}
 
 func NewTicker(log *logger.Logger) *Ticker {
 	pool, _ := ants.NewPool(10000, ants.WithLogger(&AntsLogger{log: log}))
 	queue := NewQueue(10000)
 	t := newTicker(log, pool, queue)
+	t.runQueue()
 	t.run()
 	return t
 }
 
 func newTicker(log *logger.Logger, pool *ants.Pool, queue *EsQueue) *Ticker {
 	c, index := timer.GetTickChan()
+	sl := skiplist.NewSeedEps(25, 0.000001)
 	t := &Ticker{
 		c:     c,
-		m:     treemap.NewWith(keyInt64Comparator),
+		m:     &sl,
 		index: index,
-		keyPool: &sync.Pool{New: func() interface{} {
-			return &nodeKey{}
-		}},
 		taskPool: &sync.Pool{New: func() interface{} {
 			return &taskNode{}
 		}},
 		log:   log,
 		pool:  pool,
 		queue: queue,
+		lock:  &utils.SpinLock{},
 	}
 	return t
 }
@@ -120,27 +137,53 @@ func (this_ *Ticker) GetQueue() *EsQueue {
 //	return int64(len(this_.c))
 //}
 
+func (this_ *Ticker) runQueue() {
+	xf := func(event interface{}) {
+		defer utils.Recover(func(e interface{}) {
+			this_.log.Error("event func panic")
+		})
+		event.(func())()
+	}
+	go this_.start(xf)
+
+}
+
+func (this_ *Ticker) start(f func(event interface{})) {
+	events := make([]interface{}, 4096)
+	for {
+		gets, _ := this_.queue.Gets(events)
+		if gets > 0 {
+			es := events[:gets]
+			for _, v := range es {
+				f(v)
+			}
+		} else {
+			time.Sleep(time.Microsecond * 10)
+		}
+	}
+}
+
 func (this_ *Ticker) run() {
+
 	go func() {
 		const maxBatch = 2560
-		arr := make([]interface{}, 0, maxBatch)
-		arrKey := make([]*nodeKey, 0, maxBatch)
+		arr := make([]*taskNode, 0, maxBatch)
+		//arrKey := make([]*nodeKey, 0, maxBatch)
 		for v := range this_.c {
 			now := v.UnixNano()
 			for {
 				arr = arr[:0]
-				arrKey = arrKey[:0]
 				this_.lock.Lock()
 				for {
-					k, v := this_.m.Min()
-					if k == nil {
+					v := this_.m.GetSmallestNode()
+					if v == nil {
 						break
 					}
-					nk := k.(*nodeKey)
-					if now >= nk.NanoSecond {
-						arr = append(arr, v)
-						arrKey = append(arrKey, nk)
-						this_.m.Remove(k)
+					vv := v.GetValue()
+					nk := vv.(*taskNode)
+					if now >= nk.t {
+						arr = append(arr, nk)
+						this_.m.Delete(vv)
 						if len(arr) == maxBatch {
 							break
 						}
@@ -149,12 +192,8 @@ func (this_ *Ticker) run() {
 					}
 				}
 				this_.lock.Unlock()
-				for _, v := range arrKey {
-					this_.keyPool.Put(v)
-				}
 				for _, v := range arr {
-					t := v.(*taskNode)
-					this_.runOneTask(t)
+					this_.runOneTask(v)
 				}
 				if len(arr) < maxBatch {
 					break
@@ -228,41 +267,42 @@ func (this_ *Ticker) runOneTask(t *taskNode) {
 }
 
 func (this_ *Ticker) AfterFunc(d time.Duration, f func()) {
-	k, t := this_.newAfterFunc(d, f)
-	this_.add(k, t)
+	t := this_.newAfterFunc(d, f)
+	this_.add(t)
 }
 
 func (this_ *Ticker) AfterFuncPool(d time.Duration, f func()) {
-	k, t := this_.newAfterFunc(d, f)
+	t := this_.newAfterFunc(d, f)
 	t.isPoolOrQueue = 1
-	this_.add(k, t)
+	this_.add(t)
 }
 
 func (this_ *Ticker) AfterFuncQueue(d time.Duration, f func()) {
-	k, t := this_.newAfterFunc(d, f)
+	t := this_.newAfterFunc(d, f)
 	t.isPoolOrQueue = 2
-	this_.add(k, t)
+	this_.add(t)
 }
 
-func (this_ *Ticker) newAfterFunc(d time.Duration, f func()) (*nodeKey, *taskNode) {
+func DurationToMill(d time.Duration) int64 {
+	return timer.Now().Add(d).UnixNano() / 1000000
+}
+
+func (this_ *Ticker) newAfterFunc(d time.Duration, f func()) *taskNode {
 	if d < time.Millisecond {
 		d = time.Millisecond
 	}
-	k := this_.keyPool.Get().(*nodeKey)
-	k.reset()
-	k.NanoSecond = timer.Now().Add(d).UnixNano()
-	k.Index = atomic.AddUint64(&this_.taskIndex, 1)
 
 	t := this_.taskPool.Get().(*taskNode)
 	t.reset()
-	t.t = k.NanoSecond
+	t.t = DurationToMill(d)
 	t.f = f
-	return k, t
+	t.Index = float64(t.t) + this_.newIndex()
+	return t
 }
 
-func (this_ *Ticker) add(k *nodeKey, v *taskNode) {
+func (this_ *Ticker) add(v *taskNode) {
 	this_.lock.Lock()
-	this_.m.Put(k, v)
+	this_.m.Insert(v)
 	this_.lock.Unlock()
 }
 
@@ -271,32 +311,32 @@ func (this_ *Ticker) Tick(d time.Duration, fb func() bool) {
 }
 
 func (this_ *Ticker) TickPool(d time.Duration, fb func() bool) {
-	k, t := this_.newTick(d, fb)
+	t := this_.newTick(d, fb)
 	t.isPoolOrQueue = 1
-	this_.add(k, t)
+	this_.add(t)
 }
 
 func (this_ *Ticker) TickQueue(d time.Duration, fb func() bool) {
-	k, t := this_.newTick(d, fb)
+	t := this_.newTick(d, fb)
 	t.isPoolOrQueue = 2
-	this_.add(k, t)
+	this_.add(t)
 }
 
-func (this_ *Ticker) newTick(d time.Duration, fb func() bool) (*nodeKey, *taskNode) {
+func (this_ *Ticker) newIndex() float64 {
+	return float64(atomic.AddUint32(&this_.taskIndex, 1)%1000000) / 1000000
+}
+
+func (this_ *Ticker) newTick(d time.Duration, fb func() bool) *taskNode {
 	if d < time.Millisecond {
 		d = time.Millisecond
 	}
-	k := this_.keyPool.Get().(*nodeKey)
-	k.reset()
-	k.NanoSecond = timer.Now().Add(d).UnixNano()
-	k.Index = atomic.AddUint64(&this_.taskIndex, 1)
-
 	t := this_.taskPool.Get().(*taskNode)
 	t.reset()
-	t.t = k.NanoSecond
+	t.t = DurationToMill(d)
 	t.tickMill = d
 	t.fb = fb
-	return k, t
+	t.Index = float64(t.t) + this_.newIndex()
+	return t
 }
 
 func (this_ *Ticker) Stop() {

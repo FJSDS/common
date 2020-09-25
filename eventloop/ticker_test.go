@@ -12,15 +12,18 @@ func TestNewTicker(t *testing.T) {
 	defer tick.Stop()
 	count := int64(0)
 	go func() {
-		for i := 0; i < 100000; i++ {
-			tick.Tick(time.Millisecond*2, func() bool {
+		for i := 0; i < 100000000; i++ {
+			tick.AfterFuncQueue(time.Millisecond*2, func() {
 				atomic.AddInt64(&count, 1)
-				return true
 			})
 		}
 	}()
+
+	old := int64(0)
 	for {
 		time.Sleep(time.Second)
-		fmt.Println(atomic.LoadInt64(&count))
+		n := atomic.LoadInt64(&count)
+		fmt.Println(n, n-old)
+		old = n
 	}
 }

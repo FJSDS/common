@@ -2,55 +2,49 @@ package main
 
 import (
 	"fmt"
-	"sync/atomic"
+	"math"
 	"time"
 
-	"go.uber.org/zap"
-
-	"github.com/FJSDS/common/eventloop"
-	"github.com/FJSDS/common/logger"
-	"github.com/FJSDS/common/timer"
+	"github.com/MauriceGit/skiplist"
 )
 
+type Element struct {
+	I int64
+	J int32
+}
+
+func NewElement(i int64, j int32) *Element {
+	return &Element{i, j}
+}
+
+// Implement the interface used in skiplist
+func (e *Element) ExtractKey() float64 {
+	return float64(e.I/1000000) + float64(e.J)/float64(math.MaxInt32)
+}
+func (e *Element) String() string {
+	return fmt.Sprintf("%03d", e)
+}
+
 func main() {
-	log, _ := logger.NewLogger("test", ".", zap.DebugLevel)
-	loop := eventloop.NewEventLoop(log)
-	defer loop.Stop()
-	loop.Start(func(event interface{}) {
+	list := skiplist.New()
 
-	})
-	count := int64(0)
-	go func() {
-		for i := 0; i < 50000; i++ {
-			loop.TickQueue(time.Millisecond*100, func() bool {
-				atomic.AddInt64(&count, 1)
-				return true
-			})
-		}
-		//for i := 0; i < 50000; i++ {
-		//	loop.TickPool(time.Millisecond*100, func() bool {
-		//		atomic.AddInt64(&count, 1)
-		//		return true
-		//	})
-		//}
-		for {
-			loop.PostFunc(func() {
-				atomic.AddInt64(&count, 1)
-			})
-			loop.PostFunc(func() {
-				atomic.AddInt64(&count, 1)
-			})
-			loop.AfterFuncQueue(time.Millisecond*500, func() {
-				atomic.AddInt64(&count, 1)
-			})
-		}
-	}()
-
-	old := int64(0)
-	for {
-		time.Sleep(time.Second)
-		n := atomic.LoadInt64(&count)
-		fmt.Println(n, n-old, timer.Now())
-		old = n
+	// Insert some elements
+	start := time.Now()
+	s := start.UnixNano() / 1000000
+	for i := s; i < s+10000100; i++ {
+		list.Insert(NewElement(int64(i), int32(s+10000100-i)))
 	}
+	fmt.Println(time.Now().Sub(start))
+
+	start = time.Now()
+	for i := int64(0); i < 10000100; i++ {
+		el := list.GetSmallestNode()
+		list.Delete(el.GetValue())
+		if i == 10000000 {
+			fmt.Println(el.GetValue())
+		}
+	}
+	fmt.Println(time.Now().Sub(start))
+	n := time.Now().UnixNano() / int64(time.Millisecond)
+	fmt.Println(n, n<<22>>22)
 }
