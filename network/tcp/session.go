@@ -369,7 +369,7 @@ func (this_ *Session) recvLoop() {
 					case packetProtocolPong:
 						atomic.StoreInt64(&this_.lastPongTime, timer.Now().Unix())
 					default:
-						this_.queue.PostEvent(p)
+						this_.queue.PostEventQueue(p)
 					}
 					gotData = gotData[l:]
 				} else {

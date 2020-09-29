@@ -170,7 +170,7 @@ func (this_ *Ticker) run() {
 		arr := make([]*taskNode, 0, maxBatch)
 		//arrKey := make([]*nodeKey, 0, maxBatch)
 		for v := range this_.c {
-			now := v.UnixNano()
+			now := v.UnixNano() / 1000000
 			for {
 				arr = arr[:0]
 				this_.lock.Lock()

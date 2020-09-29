@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/FJSDS/common/eventloop"
-	"github.com/FJSDS/common/eventqueue"
 	"github.com/FJSDS/common/logger"
 	"github.com/FJSDS/common/network/basepb"
 	"github.com/FJSDS/common/network/tcp"
@@ -86,12 +85,12 @@ func main() {
 
 	queue.Start(tcp.DispatchMsg(func(event interface{}) {
 		switch e := event.(type) {
-		case *eventqueue.EventStopped:
-			log.Warn("event queue stopped")
 		default:
 			log.Warn("unknown event", zap.Any("event", e))
 		}
-	}))
+	}), func() {
+		log.Info("event queue stopped")
+	})
 	go func() {
 		http.ListenAndServe("0.0.0.0:8899", nil)
 	}()

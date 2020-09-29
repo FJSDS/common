@@ -122,13 +122,13 @@ func (this_ *Acceptor) Close() {
 func (this_ *Acceptor) startConn(conn net.Conn) {
 	sess := NewSession(conn, this_.queue, true, this_.codeC, this_.logger, time.Second*2, this_.isDebugLog)
 	sess.onClose = func(e error) {
-		this_.queue.PostEvent(&SessionClosed{
+		this_.queue.PostEventQueue(&SessionClosed{
 			Err:  e,
 			Sess: sess,
 		})
 	}
 
-	this_.queue.PostEvent(&AcceptSession{
+	this_.queue.PostEventQueue(&AcceptSession{
 		sess,
 	})
 	this_.CheckPingPong(sess)
@@ -156,6 +156,7 @@ func (this_ *Acceptor) CheckPingPong(sess *Session) {
 
 func (this_ *Acceptor) StartAccept() {
 	utils.SafeGO(func(e interface{}) {
+		this_.logger.Error("StartAccept panic", zap.Any("panic info", e))
 		this_.StartAccept()
 	}, func() {
 		var tempDelay time.Duration // 监听失败时暂停多久重新开始接收

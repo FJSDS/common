@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/panjf2000/ants"
+	"go.uber.org/zap"
 
 	"github.com/FJSDS/common/logger"
 	"github.com/FJSDS/common/timer"
@@ -34,7 +35,7 @@ func NewEventLoop(log *logger.Logger) *EventLoop {
 	}
 }
 
-func (this_ *EventLoop) PostEvent(e interface{}) {
+func (this_ *EventLoop) PostEventQueue(e interface{}) {
 	ok, _ := this_.queue.Put(e)
 	for !ok {
 		runtime.Gosched()
@@ -42,8 +43,8 @@ func (this_ *EventLoop) PostEvent(e interface{}) {
 	}
 }
 
-func (this_ *EventLoop) PostFunc(f func()) {
-	this_.PostEvent(f)
+func (this_ *EventLoop) PostFuncQueue(f func()) {
+	this_.PostEventQueue(f)
 }
 
 func (this_ *EventLoop) AfterFuncQueue(d time.Duration, f func()) {
@@ -70,10 +71,10 @@ func (this_ *EventLoop) TickPool(d time.Duration, f func() bool) {
 	this_.timing.TickPool(d, f)
 }
 
-func (this_ *EventLoop) Start(f func(event interface{})) {
+func (this_ *EventLoop) Start(f func(event interface{}), endF ...func()) {
 	xf := func(event interface{}) {
 		defer utils.Recover(func(e interface{}) {
-			this_.log.Error("event func panic")
+			this_.log.Error("event func panic", zap.Any("panic info", e))
 		})
 		switch fx := event.(type) {
 		case func():
@@ -82,10 +83,21 @@ func (this_ *EventLoop) Start(f func(event interface{})) {
 			f(event)
 		}
 	}
-	go this_.start(xf)
+	var rF []func()
+	if len(endF) > 0 {
+		for _, v := range endF {
+			rF = append(rF, func() {
+				defer utils.Recover(func(e interface{}) {
+					this_.log.Error("end func panic", zap.Any("panic info", e))
+				})
+				v()
+			})
+		}
+	}
+	go this_.start(xf, rF...)
 }
 
-func (this_ *EventLoop) start(f func(event interface{})) {
+func (this_ *EventLoop) start(f func(event interface{}), endF ...func()) {
 	events := make([]interface{}, 4096)
 	for atomic.LoadInt32(&this_.stopped) == 0 {
 		gets, _ := this_.queue.Gets(events)
@@ -105,6 +117,9 @@ func (this_ *EventLoop) start(f func(event interface{})) {
 		} else {
 			f(v)
 		}
+	}
+	for _, v := range endF {
+		v()
 	}
 	close(this_.over)
 }

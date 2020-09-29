@@ -6,7 +6,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 
-	"github.com/FJSDS/common/eventqueue"
 	"github.com/FJSDS/common/logger"
 	"github.com/FJSDS/common/network/basepb"
 )
@@ -114,8 +113,6 @@ func DispatchMsg(f func(event interface{})) func(event interface{}) {
 	}
 	return func(event interface{}) {
 		switch e := event.(type) {
-		case *eventqueue.EventStopped:
-			f(event)
 		case *ConnectorInfo:
 			session := e.GetSession()
 			if session == nil {

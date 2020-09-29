@@ -25,10 +25,10 @@ func TestNewEventLoop(t *testing.T) {
 			atomic.AddInt64(&count, e)
 		}
 	})
-	loop.PostFunc(func() {
+	loop.PostFuncQueue(func() {
 		atomic.AddInt64(&count, 1)
 	})
-	loop.PostEvent(int64(1))
+	loop.PostEventQueue(int64(1))
 
 	loop.Stop()
 	r.Equal(int64(2), count)
@@ -47,7 +47,7 @@ func TestNewEventLoop1(t *testing.T) {
 			atomic.AddInt64(&count, e)
 		}
 	})
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		go func() {
 			for {
 				loop.AfterFuncQueue(time.Microsecond, func() {
@@ -56,9 +56,12 @@ func TestNewEventLoop1(t *testing.T) {
 			}
 		}()
 	}
-	for i := 0; i < 20; i++ {
+	old := int64(0)
+	for {
 		time.Sleep(time.Second)
-		fmt.Println(atomic.LoadInt64(&count))
+		n := atomic.LoadInt64(&count)
+		fmt.Println(n, n-old)
+		old = n
 	}
 	loop.Stop()
 

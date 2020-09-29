@@ -256,12 +256,12 @@ func (this_ *Connector) startSession(conn net.Conn) {
 	this_.sess.Dispatch = this_
 	this_.sess.onClose = func(err error) {
 		this_.setConnectState(ConnectStateDisconnected)
-		this_.queue.PostEvent(&ConnectorInfo{
+		this_.queue.PostEventQueue(&ConnectorInfo{
 			Connector: this_,
 			Error:     &CloseError{err},
 		})
 	}
-	this_.queue.PostEvent(&ConnectorInfo{
+	this_.queue.PostEventQueue(&ConnectorInfo{
 		Connector: this_,
 		Error:     nil,
 	})
@@ -300,7 +300,7 @@ func (this_ *Connector) Connect() {
 			conn, err := net.DialTimeout("tcp4", this_.addr, this_.ConnectTimeout)
 			if err != nil {
 				this_.setConnectState(ConnectStateInvalid)
-				this_.queue.PostEvent(&ConnectorInfo{
+				this_.queue.PostEventQueue(&ConnectorInfo{
 					Connector: this_,
 					Error:     &ConnectError{err},
 				})

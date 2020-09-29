@@ -14,7 +14,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/FJSDS/common/eventloop"
-	"github.com/FJSDS/common/eventqueue"
 	"github.com/FJSDS/common/logger"
 	"github.com/FJSDS/common/network/basepb"
 	"github.com/FJSDS/common/network/tcp"
@@ -72,12 +71,12 @@ func main() {
 	queue := eventloop.NewEventLoop(log)
 	queue.Start(tcp.DispatchMsg(func(event interface{}) {
 		switch e := event.(type) {
-		case *eventqueue.EventStopped:
-			log.Warn("event queue stopped")
 		default:
 			log.Warn("unknown event", zap.Any("event", e))
 		}
-	}))
+	}), func() {
+		log.Info("event queue stopped")
+	})
 	clients := make([]*Client, 0, 100)
 	for i := 0; i < 30000; i++ {
 		clients = append(clients, startOne(queue, log))
