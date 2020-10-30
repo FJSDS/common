@@ -72,10 +72,8 @@ func (this_ *NATSClient) RequestProto(req proto.Message, out proto.Message, opts
 	name := proto.MessageName(req)
 	ns := strings.Split(name, ".")
 	body, _ := json.Marshal(req)
-	uid, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
+	uid := uuid.NewV4()
+
 	r := &Request{
 		Path:     name,
 		Body:     body,
@@ -118,10 +116,7 @@ func (this_ *NATSClient) NotifyProto(reqs ...proto.Message) {
 			continue
 		}
 		body, _ := json.Marshal(req)
-		uid, err := uuid.NewV4()
-		if err != nil {
-			continue
-		}
+		uid := uuid.NewV4()
 		r := &Request{
 			Path:     name,
 			Body:     body,

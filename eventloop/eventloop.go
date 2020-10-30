@@ -24,7 +24,9 @@ type EventLoop struct {
 
 func NewEventLoop(log *logger.Logger) *EventLoop {
 	queue := NewQueue(100000)
-	pool, _ := ants.NewPool(10000, ants.WithLogger(&AntsLogger{log: log}), ants.WithExpiryDuration(time.Second*20))
+	pool, _ := ants.NewPool(10000, ants.WithPanicHandler(func(i interface{}) {
+		log.Error("ants.Pool panic",zap.Any("panic info" ,i))
+	}), ants.WithExpiryDuration(time.Second*20))
 	t := newTicker(log, pool, queue)
 	t.run()
 	return &EventLoop{

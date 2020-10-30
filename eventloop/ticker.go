@@ -99,7 +99,9 @@ func (this_ *taskNode) String() string {
 //}
 
 func NewTicker(log *logger.Logger) *Ticker {
-	pool, _ := ants.NewPool(10000, ants.WithLogger(&AntsLogger{log: log}))
+	pool, _ := ants.NewPool(10000,  ants.WithPanicHandler(func(i interface{}) {
+		log.Error("ants.Pool panic",zap.Any("panic info" ,i))
+	}), ants.WithExpiryDuration(time.Second*20))
 	queue := NewQueue(10000)
 	t := newTicker(log, pool, queue)
 	t.runQueue()

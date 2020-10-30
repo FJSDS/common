@@ -15,7 +15,7 @@ import (
 	"os"
 	"syscall"
 
-	"git.esports.com/ddm/common/network/ulimit"
+	"github.com/FJSDS/common/ulimit"
 )
 
 func getSockAddr(network, addr string) (sa syscall.Sockaddr, soType int, err error) {
