@@ -7,13 +7,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/MauriceGit/skiplist"
-	"github.com/panjf2000/ants"
-	"go.uber.org/zap"
-
 	"github.com/FJSDS/common/logger"
 	"github.com/FJSDS/common/timer"
 	"github.com/FJSDS/common/utils"
+	"github.com/MauriceGit/skiplist"
+	"github.com/panjf2000/ants"
+	"go.uber.org/zap"
 )
 
 type AntsLogger struct {
@@ -62,45 +61,9 @@ func (this_ *taskNode) String() string {
 	return fmt.Sprintf("%e", this_.Index)
 }
 
-//type nodeKey struct {
-//	NanoSecond int64
-//	Index      uint64
-//}
-//
-//func (e *nodeKey) ExtractKey() float64 {
-//	return float64()
-//}
-//func (e *nodeKey) String() string {
-//	return fmt.Sprintf("%03d", e)
-//}
-
-//func (this_ *nodeKey) reset() {
-//	this_.NanoSecond = 0
-//	this_.Index = 0
-//}
-
-//func keyInt64Comparator(a, b interface{}) int {
-//	aAsserted := a.(*nodeKey)
-//	bAsserted := b.(*nodeKey)
-//
-//	if aAsserted.NanoSecond > bAsserted.NanoSecond {
-//		return 1
-//	}
-//	if aAsserted.NanoSecond < bAsserted.NanoSecond {
-//		return -1
-//	}
-//	if aAsserted.Index > bAsserted.Index {
-//		return 1
-//	}
-//	if aAsserted.Index < bAsserted.Index {
-//		return -1
-//	}
-//	return 0
-//}
-
 func NewTicker(log *logger.Logger) *Ticker {
-	pool, _ := ants.NewPool(10000,  ants.WithPanicHandler(func(i interface{}) {
-		log.Error("ants.Pool panic",zap.Any("panic info" ,i))
+	pool, _ := ants.NewPool(10000, ants.WithPanicHandler(func(i interface{}) {
+		log.Error("ants.Pool panic", zap.Any("panic info", i))
 	}), ants.WithExpiryDuration(time.Second*20))
 	queue := NewQueue(10000)
 	t := newTicker(log, pool, queue)
@@ -166,11 +129,9 @@ func (this_ *Ticker) start(f func(event interface{})) {
 }
 
 func (this_ *Ticker) run() {
-
 	go func() {
 		const maxBatch = 2560
 		arr := make([]*taskNode, 0, maxBatch)
-		//arrKey := make([]*nodeKey, 0, maxBatch)
 		for v := range this_.c {
 			now := v.UnixNano() / 1000000
 			for {

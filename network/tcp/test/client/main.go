@@ -20,13 +20,6 @@ import (
 	"github.com/FJSDS/common/ulimit"
 )
 
-//type ConnectorInterface interface {
-//	OnSessionConnected(*tcp.Connector)
-//	OnSessionDisConnected(*tcp.Connector, error)
-//	OnRPCRequest(*tcp.Connector, proto.Message) proto.Message
-//	OnNormalMsg(*tcp.Connector, proto.Message)
-//}
-
 type Client struct {
 	*tcp.Connector
 	log *logger.Logger

@@ -165,12 +165,12 @@ func NowAddDaysYMD(days int) string {
 	return ToYMDString(Now().Add(time.Hour * 24 * time.Duration(days)))
 }
 
-// 转换当前时间为 2019-11-12 01:01:01 ---> 20191112 格式
+// NowToDayString 转换当前时间为 2019-11-12 01:01:01 ---> 20191112 格式
 func NowToDayString() string {
 	return ToDayString(Now())
 }
 
-// 转换t为 2019-11-12 01:01:01 ---> 20191112 格式
+// ToDayString 转换t为 2019-11-12 01:01:01 ---> 20191112 格式
 func ToDayString(t time.Time) string {
 	return t.Format("20060102")
 }
@@ -182,22 +182,22 @@ func TodayStartAndEndTime() (string, string) {
 	return strconv.Itoa(int(s.Unix())) + "000", strconv.Itoa(int(e.Unix())) + "000"
 }
 
-// 转换当前时间为 2019-11-12 01:01:01 ---> 2019111201 格式
+// NowToHourString 转换当前时间为 2019-11-12 01:01:01 ---> 2019111201 格式
 func NowToHourString() string {
 	return ToHourString(Now())
 }
 
-// 转换t为 2019-11-12 01:01:01 ---> 2019111201 格式
+// ToHourString 转换t为 2019-11-12 01:01:01 ---> 2019111201 格式
 func ToHourString(t time.Time) string {
 	return t.Format("2006010215")
 }
 
-// 转换当前时间为 2019-11 ---> 201911 格式
+// NowToMouthString 转换当前时间为 2019-11 ---> 201911 格式
 func NowToMouthString() string {
 	return ToMouthString(Now())
 }
 
-// 转换t为 2019-11 ---> 201911 格式
+// ToMouthString 转换t为 2019-11 ---> 201911 格式
 func ToMouthString(t time.Time) string {
 	return t.Format("200601")
 }
@@ -205,11 +205,6 @@ func ToMouthString(t time.Time) string {
 func AddMouth(t time.Time, value int) time.Time {
 	return t.AddDate(0, value, 0)
 }
-
-//func ()  {
-//	loc, _:= time.FixedZone("CST")
-//	time.ParseInLocation("2006-01-02 15:04:05", "2017-05-11 14:06:06", loc)
-//}
 
 func UTCSub4ToUTCAdd8Str(str string) (string, error) {
 	t, err := time.ParseInLocation("2006-01-02 15:04:05", str, UtcSub4Loc)

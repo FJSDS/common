@@ -16,14 +16,6 @@ import (
 	"github.com/FJSDS/common/network/tcp"
 )
 
-/*
-type AcceptorInterface interface {
-	OnSessionConnected(*Session)
-	OnSessionDisConnected(*Session, error)
-	OnRPCRequest(*Session, proto.Message) proto.Message
-	OnNormalMsg(*Session, proto.Message)
-}
-*/
 type Server struct {
 	*tcp.Acceptor
 	log *logger.Logger

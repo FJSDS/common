@@ -20,4 +20,5 @@ require (
 	github.com/valyala/fasthttp v1.16.0
 	github.com/valyala/fasttemplate v1.2.1 // indirect
 	go.uber.org/zap v1.16.0
+	google.golang.org/protobuf v1.23.0
 )
